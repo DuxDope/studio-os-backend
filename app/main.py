@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles # <-- Asegúrate de que esté esta línea
+from fastapi.staticfiles import StaticFiles
 import os
 from .database import engine
 from . import models
@@ -10,6 +10,9 @@ import uvicorn
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
+os.makedirs("uploads", exist_ok=True)
+# Esto hace que la carpeta de fotos sea visible para React
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 # Crear la carpeta uploads si no existe para que no de error
 if not os.path.exists("uploads"):
