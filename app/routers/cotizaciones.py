@@ -119,7 +119,7 @@ def obtener_mesa_trabajo(db: Session = Depends(get_db)):
         # Buscamos la primera imagen asociada a esta cotización en la tabla de imágenes
         imagen = db.query(models.ImagenReferencia).filter(models.ImagenReferencia.cotizacion_id == cot.id).first()
         
-        # Extraemos solo el nombre del archivo de la ruta guardada (ej: de "uploads/foto.jpg" a "foto.jpg")
+        # Extraemos solo el nombre del archivo de la ruta guardada
         nombre_archivo = imagen.url_imagen.split("/")[-1] if imagen else None
 
         resultado.append({
@@ -130,8 +130,8 @@ def obtener_mesa_trabajo(db: Session = Depends(get_db)):
             "zona_cuerpo": cot.zona_cuerpo,
             "tamano_cm": cot.tamano_cm,
             "estado": cot.estado,
-            # Construimos la URL apuntando a tu servidor local
-            "imagen_url": f"http://127.0.0.1:8000/uploads/{nombre_archivo}" if nombre_archivo else None,
+            # ¡AQUÍ ESTÁ LA MAGIA! Solo pasamos "uploads/archivo.jpg"
+            "imagen_url": f"uploads/{nombre_archivo}" if nombre_archivo else None,
             "notas_medicas": cot.cliente.notas_medicas
         })
         
