@@ -10,8 +10,7 @@ import uvicorn
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
-os.makedirs("uploads", exist_ok=True)
-# Esto hace que la carpeta de fotos sea visible para React
+os.makedirs("uploads", exist_ok=True) # Crea la carpeta si no existe
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 # Crear la carpeta uploads si no existe para que no de error
