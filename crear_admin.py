@@ -6,7 +6,7 @@ def crear_usuario():
     db = SessionLocal()
     try:
         # Definimos tus credenciales
-        email_nuevo = "admin@supertrebol.cl"
+        email_nuevo = "tattozooldyck@gmail.com"
         password_plana = "admin123" # <--- Cambia esta clave si quieres
         
         # Encriptamos la clave usando tu función de auth.py

@@ -1,7 +1,7 @@
 import bcrypt
 
 # Pon tu contraseña real aquí
-nueva_clave = "Rusvel1012"
+nueva_clave = "admin123"
 
 # Generar el hash de forma directa
 password_bytes = nueva_clave.encode('utf-8')
