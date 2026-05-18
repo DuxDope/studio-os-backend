@@ -6,6 +6,7 @@ from .cotizaciones import obtener_usuario_actual
 from ..database import get_db
 from pydantic import BaseModel
 from datetime import timedelta, datetime
+from app.models import Cita, Cotizacion
 
 router = APIRouter(prefix="/citas", tags=["Agenda"])
 
@@ -15,7 +16,7 @@ def crear_cita(cita: schemas.CitaCreate, db: Session = Depends(get_db)):
     print(f"📅 Intentando agendar cita para cotización: {cita.cotizacion_id}")
     
     # Verificamos que la cotización exista
-    cotizacion = db.query(models.Cotizacion).filter(models.Cotizacion.id == cita.cotizacion_id).first()
+    cotizacion = db.query(Cotizacion).filter(Cotizacion.id == cita.cotizacion_id).first()
     if not cotizacion:
         print("❌ Error: La cotización no existe en la DB")
         raise HTTPException(status_code=404, detail="Cotización no encontrada")
