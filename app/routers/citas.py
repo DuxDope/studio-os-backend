@@ -193,7 +193,7 @@ def eliminar_cita(cita_id: str, db: Session = Depends(database.get_db)):
     return {"mensaje": "Cita eliminada correctamente"}
 
 @router.patch("/{cita_id}/completar")
-def completar_cita(cita_id: int, db: Session = Depends(get_db)):
+def completar_cita(cita_id: str, db: Session = Depends(get_db)): # <--- ¡EL CAMBIO ESTÁ AQUÍ (str en vez de int)!
     # Buscar la cita
     cita = db.query(Cita).filter(Cita.id == cita_id).first()
     if not cita:
@@ -219,4 +219,4 @@ def completar_cita(cita_id: int, db: Session = Depends(get_db)):
         f"Cualquier duda me avisas. ¡Gracias por la confianza!"
     )
     
-    return {"status": "success", "telefono": telefono, "texto_cuidados": texto_cuidados} 
+    return {"status": "success", "telefono": telefono, "texto_cuidados": texto_cuidados}
