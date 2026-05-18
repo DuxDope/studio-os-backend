@@ -191,3 +191,32 @@ def eliminar_cita(cita_id: str, db: Session = Depends(database.get_db)):
         
     db.commit()
     return {"mensaje": "Cita eliminada correctamente"}
+
+@router.patch("/{cita_id}/completar")
+def completar_cita(cita_id: int, db: Session = Depends(get_db)):
+    # Buscar la cita
+    cita = db.query(Cita).filter(Cita.id == cita_id).first()
+    if not cita:
+        raise HTTPException(status_code=404, detail="Cita no encontrada")
+    
+    # Cambiar el estado de la cotización asociada
+    if cita.cotizacion:
+        cita.cotizacion.estado = "completada"
+    
+    db.commit()
+    
+    # Preparar el mensaje de WhatsApp
+    cliente_nombre = cita.cotizacion.cliente if cita.cotizacion else "Cliente"
+    telefono = cita.cotizacion.telefono if cita.cotizacion else ""
+    
+    texto_cuidados = (
+        f"¡Hola {cliente_nombre}! 🔥 Qué tremenda sesión la de hoy. "
+        f"Para que tu tatuaje cure perfecto, recuerda seguir estos cuidados:\n\n"
+        f"1. 🧼 Retira el parche en 2-3 horas y lava con jabón neutro y agua tibia.\n"
+        f"2. 🧴 Aplica una capa delgada de crema cicatrizante 3 veces al día.\n"
+        f"3. ☀️ NO lo expongas al sol directo, piscinas, playa o sauna por al menos 15 días.\n"
+        f"4. 🚫 No rasques ni arranques las cáscaras.\n\n"
+        f"Cualquier duda me avisas. ¡Gracias por la confianza!"
+    )
+    
+    return {"status": "success", "telefono": telefono, "texto_cuidados": texto_cuidados} 
