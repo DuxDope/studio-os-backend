@@ -194,7 +194,7 @@ def eliminar_cita(cita_id: str, db: Session = Depends(database.get_db)):
     return {"mensaje": "Cita eliminada correctamente"}
 
 @router.patch("/{cita_id}/completar")
-def completar_cita(cita_id: str, db: Session = Depends(get_db)): # <--- ¡EL CAMBIO ESTÁ AQUÍ (str en vez de int)!
+def completar_cita(cita_id: str, db: Session = Depends(get_db)):
     # Buscar la cita
     cita = db.query(Cita).filter(Cita.id == cita_id).first()
     if not cita:
@@ -206,9 +206,18 @@ def completar_cita(cita_id: str, db: Session = Depends(get_db)): # <--- ¡EL CAM
     
     db.commit()
     
-    # Preparar el mensaje de WhatsApp
-    cliente_nombre = cita.cotizacion.cliente if cita.cotizacion else "Cliente"
-    telefono = cita.cotizacion.telefono if cita.cotizacion else ""
+    # Preparar el mensaje de WhatsApp buscando los datos en el Cliente (AQUÍ ESTÁ EL FIX)
+    cliente_nombre = "Cliente"
+    telefono = ""
+    
+    # Si la cita tiene cotización, y esa cotización tiene un cliente asociado en la BD...
+    if cita.cotizacion and cita.cotizacion.cliente_relacion:
+        cliente_nombre = cita.cotizacion.cliente_relacion.nombre_completo
+        telefono = cita.cotizacion.cliente_relacion.telefono
+    # (Si en tu BD el string del nombre se guardaba directo en cotizacion.cliente, úsalo así:)
+    elif cita.cotizacion and getattr(cita.cotizacion, 'cliente', None):
+        cliente_nombre = cita.cotizacion.cliente
+        # Como no hay teléfono en cotización, dejamos el teléfono en blanco si no hay relación
     
     texto_cuidados = (
         f"¡Hola {cliente_nombre}! 🔥 Qué tremenda sesión la de hoy. "
