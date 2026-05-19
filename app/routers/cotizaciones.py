@@ -2,14 +2,25 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, s
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from typing import List
-import shutil
 import os
 import uuid
 from jose import JWTError, jwt
 
+# Importaciones de Cloudinary
+import cloudinary
+import cloudinary.uploader
+
 from .. import models, schemas, auth
 from ..database import get_db
 from ..auth import SECRET_KEY, ALGORITHM
+
+# --- CONFIGURACIÓN CLOUDINARY (Debe ir arriba) ---
+cloudinary.config(
+  cloud_name = os.getenv('CLOUDINARY_CLOUD_NAME'),
+  api_key = os.getenv('CLOUDINARY_API_KEY'),
+  api_secret = os.getenv('CLOUDINARY_API_SECRET'),
+  secure = True
+)
 
 router = APIRouter(
     prefix="/cotizaciones",
@@ -18,10 +29,6 @@ router = APIRouter(
 
 # Configuración para que FastAPI sepa de dónde extraer el token
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
-
-# Carpeta de fotos
-UPLOAD_DIR = "uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # --- FUNCIÓN PARA PROTEGER RUTAS ---
 def obtener_usuario_actual(token: str = Depends(oauth2_scheme)):
@@ -47,7 +54,7 @@ def crear_cotizacion(
     cliente_id: str = Form(...),
     descripcion_idea: str = Form(...),
     zona_cuerpo: str = Form(...),
-    tamano_cm: str = Form(...),  # <--- ¡CORREGIDO AQUÍ! (str en vez de int)
+    tamano_cm: str = Form(...),
     es_cover_up: bool = Form(False),
     imagen: UploadFile = File(...),
     db: Session = Depends(get_db)
@@ -67,16 +74,18 @@ def crear_cotizacion(
     db.commit()
     db.refresh(nueva_cotizacion)
 
-    extension = imagen.filename.split(".")[-1]
-    nombre_archivo = f"{uuid.uuid4()}.{extension}"
-    ruta_archivo = f"{UPLOAD_DIR}/{nombre_archivo}"
+    # --- MAGIA CLOUDINARY: Subimos la imagen a la nube directamente ---
+    imagen_url_bd = None
+    if imagen:
+        # Subir el archivo a Cloudinary
+        resultado_nube = cloudinary.uploader.upload(imagen.file)
+        # Obtener el link seguro
+        imagen_url_bd = resultado_nube.get("secure_url")
 
-    with open(ruta_archivo, "wb") as buffer:
-        shutil.copyfileobj(imagen.file, buffer)
-
+    # Guardamos el link de Cloudinary en la base de datos
     nueva_imagen = models.ImagenReferencia(
         cotizacion_id=nueva_cotizacion.id,
-        url_imagen=ruta_archivo
+        url_imagen=imagen_url_bd
     )
     db.add(nueva_imagen)
     db.commit()
@@ -84,7 +93,7 @@ def crear_cotizacion(
     return {
         "mensaje": "Cotización enviada con éxito",
         "cotizacion_id": nueva_cotizacion.id,
-        "imagen_subida": ruta_archivo
+        "imagen_subida": imagen_url_bd
     }
 
 # Endpoint protegido: Solo el tatuador logueado puede responder
@@ -95,7 +104,7 @@ def responder_cotizacion(
     horas: int = Form(...), 
     notas: str = Form(None),
     db: Session = Depends(get_db),
-    usuario: str = Depends(obtener_usuario_actual) # SEGURIDAD
+    usuario: str = Depends(obtener_usuario_actual)
 ):
     cot = db.query(models.Cotizacion).filter(models.Cotizacion.id == cotizacion_id).first()
     if not cot:
@@ -116,11 +125,7 @@ def obtener_mesa_trabajo(db: Session = Depends(get_db)):
     resultado = []
     
     for cot in cotizaciones:
-        # Buscamos la primera imagen asociada a esta cotización en la tabla de imágenes
         imagen = db.query(models.ImagenReferencia).filter(models.ImagenReferencia.cotizacion_id == cot.id).first()
-        
-        # Extraemos solo el nombre del archivo de la ruta guardada
-        nombre_archivo = imagen.url_imagen.split("/")[-1] if imagen else None
 
         resultado.append({
             "id": str(cot.id),
@@ -130,8 +135,8 @@ def obtener_mesa_trabajo(db: Session = Depends(get_db)):
             "zona_cuerpo": cot.zona_cuerpo,
             "tamano_cm": cot.tamano_cm,
             "estado": cot.estado,
-            # ¡AQUÍ ESTÁ LA MAGIA! Solo pasamos "uploads/archivo.jpg"
-            "imagen_url": f"uploads/{nombre_archivo}" if nombre_archivo else None,
+            # Ahora pasamos el link directo que nos dio Cloudinary (sin inventar "uploads/")
+            "imagen_url": imagen.url_imagen if imagen else None,
             "notas_medicas": cot.cliente.notas_medicas
         })
         
