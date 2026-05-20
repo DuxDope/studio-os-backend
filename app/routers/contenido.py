@@ -59,3 +59,13 @@ def crear_promocion(
     db.add(nueva_promo)
     db.commit()
     return {"mensaje": "Promoción creada exitosamente"}
+
+# 5. PRIVADO: Para que el panel de admin vea TODAS las promos (activas e inactivas)
+@router.get("/admin-info")
+def obtener_contenido_admin(
+    db: Session = Depends(get_db),
+    usuario: str = Depends(obtener_usuario_actual)
+):
+    promos = db.query(models.Promocion).all()
+    galeria = db.query(models.Galeria).all()
+    return {"promociones": promos, "galeria": galeria}
