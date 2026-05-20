@@ -1,11 +1,19 @@
+import cloudinary
 import cloudinary.uploader
+import os
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Form
 from sqlalchemy.orm import Session
 from .. import models
 from ..database import get_db
+from .cotizaciones import obtener_usuario_actual
 
-# Importamos tu función de seguridad desde el archivo de cotizaciones (o de donde la tengas en auth)
-from .cotizaciones import obtener_usuario_actual 
+# Volvemos a conectar las llaves de la nube aquí
+cloudinary.config(
+  cloud_name = os.getenv('CLOUDINARY_CLOUD_NAME'),
+  api_key = os.getenv('CLOUDINARY_API_KEY'),
+  api_secret = os.getenv('CLOUDINARY_API_SECRET'),
+  secure = True
+)
 
 router = APIRouter(prefix="/contenido", tags=["contenido"])
 
