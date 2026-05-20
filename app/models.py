@@ -5,7 +5,6 @@ from sqlalchemy.orm import relationship
 from datetime import datetime
 from .database import Base
 
-
 class Cliente(Base):
     __tablename__ = "clientes"
 
@@ -36,7 +35,7 @@ class Cotizacion(Base):
     # Relaciones
     cliente = relationship("Cliente", back_populates="cotizaciones")
     imagenes = relationship("ImagenReferencia", back_populates="cotizacion")
-    cita = relationship("Cita", back_populates="cotizacion", uselist=False) # Una cotización puede tener una cita asociada
+    cita = relationship("Cita", back_populates="cotizacion", uselist=False)
 
 class ImagenReferencia(Base):
     __tablename__ = "imagenes_referencia"
@@ -48,32 +47,19 @@ class ImagenReferencia(Base):
     # Relaciones
     cotizacion = relationship("Cotizacion", back_populates="imagenes")
 
-class Promocion(Base):
-    __tablename__ = "promociones"
-
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    titulo = Column(String, index=True)
-    descripcion = Column(String)
-    precio = Column(Numeric(10, 2))
-    url_imagen = Column(String)
-    activa = Column(Boolean, default=True) # Para prender y apagar promos sin borrarlas
-
 class Usuario(Base):
     __tablename__ = "usuarios"
 
     id = Column(String, primary_key=True, index=True)
     email = Column(String, unique=True, index=True)
     nombre = Column(String)
-    password_hashed = Column(String) # Nunca guardamos la clave real, solo el hash
+    password_hashed = Column(String)
     activo = Column(Boolean, default=True)
 
 class Cita(Base):
     __tablename__ = "citas"
 
-    # ¡EL ARREGLO ESTÁ AQUÍ! Lo devolvemos a String para que coincida con tu tabla en Neon,
-    # pero usamos lambda para generar el UUID convertido a texto automáticamente.
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    
     cotizacion_id = Column(UUID(as_uuid=True), ForeignKey("cotizaciones.id"))
     tatuador_id = Column(String, ForeignKey("usuarios.id"), nullable=True)
     fecha_inicio = Column(DateTime, nullable=False)
@@ -82,3 +68,23 @@ class Cita(Base):
 
     # Relaciones
     cotizacion = relationship("Cotizacion", back_populates="cita")
+
+
+# --- TABLAS DE CONTENIDO (LANDING PAGE) ---
+
+class Promocion(Base):
+    __tablename__ = "promociones"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    titulo = Column(String, index=True)
+    descripcion = Column(String)
+    precio = Column(Numeric(10, 2))
+    url_imagen = Column(String, nullable=True)
+    activa = Column(Boolean, default=True)
+
+class Galeria(Base):
+    __tablename__ = "galeria"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    url_imagen = Column(String)
+    titulo = Column(String, nullable=True)
