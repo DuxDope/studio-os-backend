@@ -195,38 +195,27 @@ def eliminar_cita(cita_id: str, db: Session = Depends(database.get_db)):
 
 @router.patch("/{cita_id}/completar")
 def completar_cita(cita_id: str, db: Session = Depends(get_db)):
-    # Buscar la cita
-    cita = db.query(Cita).filter(Cita.id == cita_id).first()
+    # 1. Buscar la cita
+    cita = db.query(models.Cita).filter(models.Cita.id == cita_id).first()
     if not cita:
         raise HTTPException(status_code=404, detail="Cita no encontrada")
     
-    # Cambiar el estado de la cotización asociada
-    if cita.cotizacion:
-        cita.cotizacion.estado = "completada"
+    # 2. Cambiar estado
+    cita.estado = "completada"
     
-    db.commit()
-    
-    # Preparar el mensaje de WhatsApp buscando los datos en el Cliente (AQUÍ ESTÁ EL FIX)
-    cliente_nombre = "Cliente"
+    # 3. Buscar datos del cliente para el WhatsApp
     telefono = ""
+    nombre = "Cliente"
     
-    # Si la cita tiene cotización, y esa cotización tiene un cliente asociado en la BD...
-    if cita.cotizacion and cita.cotizacion.cliente_relacion:
-        cliente_nombre = cita.cotizacion.cliente_relacion.nombre_completo
-        telefono = cita.cotizacion.cliente_relacion.telefono
-    # (Si en tu BD el string del nombre se guardaba directo en cotizacion.cliente, úsalo así:)
-    elif cita.cotizacion and getattr(cita.cotizacion, 'cliente', None):
-        cliente_nombre = cita.cotizacion.cliente
-        # Como no hay teléfono en cotización, dejamos el teléfono en blanco si no hay relación
-    
-    texto_cuidados = (
-        f"¡Hola {cliente_nombre}! 🔥 Qué tremenda sesión la de hoy. "
-        f"Para que tu tatuaje cure perfecto, recuerda seguir estos cuidados:\n\n"
-        f"1. 🧼 Retira el parche en 2-3 horas y lava con jabón neutro y agua tibia.\n"
-        f"2. 🧴 Aplica una capa delgada de crema cicatrizante 3 veces al día.\n"
-        f"3. ☀️ NO lo expongas al sol directo, piscinas, playa o sauna por al menos 15 días.\n"
-        f"4. 🚫 No rasques ni arranques las cáscaras.\n\n"
-        f"Cualquier duda me avisas. ¡Gracias por la confianza!"
-    )
-    
-    return {"status": "success", "telefono": telefono, "texto_cuidados": texto_cuidados}
+    if cita.cotizacion:
+        cita.cotizacion.estado = "completada" # La cotización también se marca lista
+        if cita.cotizacion.cliente:
+            telefono = cita.cotizacion.cliente.telefono
+            nombre = cita.cotizacion.cliente.nombre_completo
+
+    db.commit()
+
+    # 4. Generar texto de cuidados
+    texto = f"¡Hola {nombre}! Gracias por tu visita al estudio hoy. 🤘 Recuerda lavar tu nuevo tatuaje 3 veces al día con jabón neutro y aplicar una capa fina de crema cicatrizante. ¡Cualquier duda técnica me avisas!"
+
+    return {"telefono": telefono, "texto_cuidados": texto}
