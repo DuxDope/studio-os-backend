@@ -172,7 +172,7 @@ def reprogramar_cita(cita_id: str, datos: CitaReprogramar, db: Session = Depends
     fin_str = datos.fecha_fin.replace("Z", "")
     
     cita.fecha_inicio = datetime.fromisoformat(inicio_str)
-    cita.fecha_fin = datetime.fromisoformat(fin_str)
+    cita.fecha_@router.patch("/{cita_id}/completar")fin = datetime.fromisoformat(fin_str)
     
     db.commit()
     return {"mensaje": "Cita reprogramada con éxito"}
@@ -193,29 +193,30 @@ def eliminar_cita(cita_id: str, db: Session = Depends(database.get_db)):
     db.commit()
     return {"mensaje": "Cita eliminada correctamente"}
 
-@router.patch("/{cita_id}/completar")
+
 def completar_cita(cita_id: str, db: Session = Depends(get_db)):
-    # 1. Buscar la cita
-    cita = db.query(models.Cita).filter(models.Cita.id == cita_id).first()
-    if not cita:
-        raise HTTPException(status_code=404, detail="Cita no encontrada")
-    
-    # 2. Cambiar estado
-    cita.estado = "completada"
-    
-    # 3. Buscar datos del cliente para el WhatsApp
-    telefono = ""
-    nombre = "Cliente"
-    
-    if cita.cotizacion:
-        cita.cotizacion.estado = "completada" # La cotización también se marca lista
-        if cita.cotizacion.cliente:
-            telefono = cita.cotizacion.cliente.telefono
-            nombre = cita.cotizacion.cliente.nombre_completo
+    try:
+        cita = db.query(models.Cita).filter(models.Cita.id == cita_id).first()
+        if not cita:
+            raise HTTPException(status_code=404, detail="Cita no encontrada")
+        
+        cita.estado = "completada"
+        
+        telefono = ""
+        nombre = "Cliente"
+        
+        # Validación segura paso a paso
+        if cita.cotizacion:
+            cita.cotizacion.estado = "completada"
+            if hasattr(cita.cotizacion, 'cliente') and cita.cotizacion.cliente:
+                telefono = cita.cotizacion.cliente.telefono or ""
+                nombre = cita.cotizacion.cliente.nombre_completo or "Cliente"
 
-    db.commit()
+        db.commit()
 
-    # 4. Generar texto de cuidados
-    texto = f"¡Hola {nombre}! Gracias por tu visita al estudio hoy. 🤘 Recuerda lavar tu nuevo tatuaje 3 veces al día con jabón neutro y aplicar una capa fina de crema cicatrizante. ¡Cualquier duda técnica me avisas!"
+        texto = f"¡Hola {nombre}! Gracias por tu visita al estudio hoy. 🤘 Recuerda lavar tu nuevo tatuaje 3 veces al día con jabón neutro y aplicar una capa fina de crema cicatrizante."
 
-    return {"telefono": telefono, "texto_cuidados": texto}
+        return {"telefono": telefono, "texto_cuidados": texto}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
