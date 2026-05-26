@@ -172,7 +172,7 @@ def reprogramar_cita(cita_id: str, datos: CitaReprogramar, db: Session = Depends
     fin_str = datos.fecha_fin.replace("Z", "")
     
     cita.fecha_inicio = datetime.fromisoformat(inicio_str)
-    cita.fecha_@router.patch("/{cita_id}/completar")fin = datetime.fromisoformat(fin_str)
+    cita.fecha_fin = datetime.fromisoformat(fin_str)
     
     db.commit()
     return {"mensaje": "Cita reprogramada con éxito"}
@@ -194,6 +194,7 @@ def eliminar_cita(cita_id: str, db: Session = Depends(database.get_db)):
     return {"mensaje": "Cita eliminada correctamente"}
 
 
+@router.patch("/{cita_id}/completar")
 def completar_cita(cita_id: str, db: Session = Depends(get_db)):
     try:
         cita = db.query(models.Cita).filter(models.Cita.id == cita_id).first()
@@ -205,7 +206,6 @@ def completar_cita(cita_id: str, db: Session = Depends(get_db)):
         telefono = ""
         nombre = "Cliente"
         
-        # Validación segura paso a paso
         if cita.cotizacion:
             cita.cotizacion.estado = "completada"
             if hasattr(cita.cotizacion, 'cliente') and cita.cotizacion.cliente:
