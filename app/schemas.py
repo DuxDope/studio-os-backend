@@ -51,8 +51,12 @@ class CitaBase(BaseModel):
     fecha_inicio: datetime
     fecha_fin: datetime
 
-class CitaCreate(CitaBase):
-    pass
+class CitaCreate(BaseModel):
+    cotizacion_id: str
+    fecha_inicio: datetime
+    fecha_fin: datetime
+    tatuador_id: Optional[int] = None  # <-- AGREGADO
+    abono: Optional[int] = None        # <-- AGREGADO
 
 class Cita(CitaBase): # <--- ESTA ES LA QUE FALTA O ESTÁ MAL ESCRITA
     id: str

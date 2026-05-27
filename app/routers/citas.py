@@ -8,45 +8,46 @@ from pydantic import BaseModel
 from datetime import timedelta, datetime
 from app.models import Cita, Cotizacion
 from fastapi.responses import Response as FastAPIResponse
+from fastapi import Response
 
 router = APIRouter(prefix="/citas", tags=["Agenda"])
 
-# ¡Ojo aquí! Le quitamos el response_model=schemas.Cita de la línea de @router
 @router.post("/")
 def crear_cita(cita: schemas.CitaCreate, db: Session = Depends(get_db)):
-    print(f"📅 Intentando agendar cita para cotización: {cita.cotizacion_id}")
-    
-    # Verificamos que la cotización exista
-    cotizacion = db.query(Cotizacion).filter(Cotizacion.id == cita.cotizacion_id).first()
+    cotizacion = db.query(models.Cotizacion).filter(models.Cotizacion.id == cita.cotizacion_id).first()
     if not cotizacion:
-        print("❌ Error: La cotización no existe en la DB")
-        raise HTTPException(status_code=404, detail="Cotización no encontrada")
+        raise HTTPException(status_code=404, detail="Cotizacion no encontrada")
 
-    # Creamos la cita (Sin tatuador_id para evitar problemas)
+    # Guardar cita y tatuador
     nueva_cita = models.Cita(
         cotizacion_id=cita.cotizacion_id,
         fecha_inicio=cita.fecha_inicio,
         fecha_fin=cita.fecha_fin, 
-        estado="programada"
+        estado="programada",
+        tatuador_id=cita.tatuador_id # <-- Se guarda el tatuador
     )
-    
+    db.add(nueva_cita)
+    cotizacion.estado = "agendada"
+
+    # Procesar el Abono automático si viene en el modal
+    if cita.abono and cita.abono > 0:
+        cliente = db.query(models.Cliente).filter(models.Cliente.id == cotizacion.cliente_id).first()
+        if cliente:
+            cliente.saldo_abono += cita.abono
+            mov = models.AbonoMovimiento(
+                cliente_id=cliente.id,
+                monto=cita.abono,
+                tipo="carga",
+                descripcion="Abono de reserva (Agenda)"
+            )
+            db.add(mov)
+
     try:
-        db.add(nueva_cita)
-        # Cambiamos el estado de la cotización para que desaparezca de las pendientes
-        cotizacion.estado = "agendada" 
         db.commit()
-        
-        print("✅ Cita agendada con éxito en Neon")
-        
-        # ¡ESTA ES LA MAGIA! 
-        # En vez de devolver el objeto, devolvemos un simple mensaje.
-        # Así evitamos el error de validación de FastAPI.
         return {"mensaje": "Cita agendada exitosamente"}
-        
     except Exception as e:
         db.rollback()
-        print(f"❌ Error de base de datos: {str(e)}")
-        raise HTTPException(status_code=400, detail="Error al guardar la cita")
+        raise HTTPException(status_code=400, detail="Error al guardar")
     
 @router.get("/mis-citas")
 def obtener_mis_citas(
@@ -60,6 +61,11 @@ def obtener_mis_citas(
     
     resultado = []
     for c in citas:
+        tatuador_nombre = None
+        if c.tatuador_id:
+            tatuador = db.query(models.Usuario).filter(models.Usuario.id == c.tatuador_id).first()
+            if tatuador:
+                tatuador_nombre = tatuador.nombre or tatuador.email
         # PARCHE DE ZONA HORARIA: 
         # Si la base de datos te devuelve la hora en UTC, le restamos 4 horas 
         # para que en el calendario de Chile se vea en el día y hora correcto.
@@ -71,6 +77,7 @@ def obtener_mis_citas(
             "id": str(c.id),
             "fecha_inicio": hora_local.isoformat(), # Enviamos la hora ya ajustada
             "estado": c.estado,
+            "tatuador_nombre": tatuador_nombre,
             "cotizacion": {
                 "cliente": c.cotizacion.cliente.nombre_completo,
                 "idea": c.cotizacion.descripcion_idea,
@@ -297,3 +304,32 @@ def exportar_calendario_ical(token: str, db: Session = Depends(get_db)):
             "Cache-Control": "no-cache, no-store",
         },
     )
+
+@router.get("/calendar.ics")
+def exportar_calendario(token: str = None, db: Session = Depends(get_db)):
+    # Seguridad básica para que no cualquiera lea la agenda
+    if token != "studio_calendario_secreto_2024":
+        raise HTTPException(status_code=401, detail="Token inválido")
+        
+    citas = db.query(models.Cita).all()
+    
+    ical = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Studio OS//Tattoo App//ES"]
+    for c in citas:
+        if not c.fecha_inicio or not c.fecha_fin: continue
+        
+        # Formato que exige Google Calendar (UTC puro sin guiones)
+        dtstart = c.fecha_inicio.strftime("%Y%m%dT%H%M%SZ")
+        dtend = c.fecha_fin.strftime("%Y%m%dT%H%M%SZ")
+        cliente_nombre = c.cotizacion.cliente.nombre_completo if c.cotizacion and c.cotizacion.cliente else "Cliente"
+        
+        ical.append("BEGIN:VEVENT")
+        ical.append(f"UID:{c.id}@studio-os")
+        ical.append(f"DTSTAMP:{dtstart}")
+        ical.append(f"DTSTART:{dtstart}")
+        ical.append(f"DTEND:{dtend}")
+        ical.append(f"SUMMARY:Tatuaje - {cliente_nombre}")
+        ical.append("END:VEVENT")
+        
+    ical.append("END:VCALENDAR")
+    
+    return Response(content="\r\n".join(ical), media_type="text/calendar")

@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 import os
 from .database import engine
 from . import models
-from .routers import clientes, cotizaciones, promociones, usuarios, citas, contenido
+from .routers import clientes, cotizaciones, promociones, usuarios, citas, contenido, abono
 import uvicorn
 
 models.Base.metadata.create_all(bind=engine)
@@ -44,3 +44,4 @@ app.include_router(promociones.router)
 app.include_router(usuarios.router)
 app.include_router(citas.router)
 app.include_router(contenido.router)
+app.include_router(abono.router)

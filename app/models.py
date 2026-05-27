@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, Integer, Boolean, Numeric, ForeignKey, DateTime
+from sqlalchemy import Column, String, Integer, Boolean, Numeric, ForeignKey, DateTime, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -14,9 +14,12 @@ class Cliente(Base):
     email = Column(String, unique=True, nullable=False)
     notas_medicas = Column(String, nullable=True)
     fecha_registro = Column(DateTime, default=datetime.utcnow)
+    saldo_abono = Column(Integer, default=0, nullable=False)
+    abono_movimientos = relationship("AbonoMovimiento", back_populates="cliente")
 
     # Relación 1 a N: Un cliente puede tener muchas cotizaciones
     cotizaciones = relationship("Cotizacion", back_populates="cliente")
+    abono_movimientos = relationship("AbonoMovimiento", back_populates="cliente")
 
 class Cotizacion(Base):
     __tablename__ = "cotizaciones"
@@ -88,3 +91,15 @@ class Galeria(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     url_imagen = Column(String)
     titulo = Column(String, nullable=True)
+
+class AbonoMovimiento(Base):
+    __tablename__ = "abono_movimientos"
+
+    id          = Column(Integer, primary_key=True, index=True)
+    cliente_id  = Column(Integer, ForeignKey("clientes.id"), nullable=False)
+    monto       = Column(Integer, nullable=False)
+    tipo        = Column(String(20), nullable=False)   # 'carga' | 'descuento'
+    descripcion = Column(Text, nullable=True)
+    fecha       = Column(DateTime, default=datetime.utcnow)
+
+    cliente = relationship("Cliente", back_populates="abono_movimientos")
