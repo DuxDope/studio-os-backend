@@ -24,3 +24,10 @@ def login(email: str = Form(...), password: str = Form(...), db: Session = Depen
         "token_type": "bearer",
         "usuario": {"nombre": user.nombre, "email": user.email}
     }
+
+# Agrégalo a tu backend en routers/usuarios.py o donde tengas las rutas de usuarios
+@router.get("/lista-tatuadores")
+def obtener_tatuadores(db: Session = Depends(database.get_db)):
+    # Asumo que tus usuarios tienen un rol o simplemente los traemos a todos
+    tatuadores = db.query(models.Usuario).all() 
+    return [{"id": t.id, "nombre": t.email} for t in tatuadores] # Ajusta según cómo guardes el nombre

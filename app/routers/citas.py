@@ -7,6 +7,7 @@ from ..database import get_db
 from pydantic import BaseModel
 from datetime import timedelta, datetime
 from app.models import Cita, Cotizacion
+from fastapi.responses import Response as FastAPIResponse
 
 router = APIRouter(prefix="/citas", tags=["Agenda"])
 
@@ -220,3 +221,79 @@ def completar_cita(cita_id: str, db: Session = Depends(get_db)):
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+    
+@router.get("/calendar.ics")
+def exportar_calendario_ical(token: str, db: Session = Depends(get_db)):
+    """
+    Feed iCal para suscribir en Google Calendar.
+    URL: /citas/calendar.ics?token=TU_TOKEN
+    """
+    cal_token = os.getenv("CAL_TOKEN", "studio_calendario_secreto_2024")
+    if token != cal_token:
+        raise HTTPException(status_code=403, detail="Token inválido")
+
+    citas = (
+        db.query(Cita)
+        .filter(Cita.estado != "completada")
+        .all()
+    )
+
+    lines = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//Tattoo Studio OS//ES",
+        "CALSCALE:GREGORIAN",
+        "METHOD:PUBLISH",
+        "X-WR-CALNAME:🎨 Agenda Tattoo Studio",
+        "X-WR-TIMEZONE:America/Santiago",
+        "REFRESH-INTERVAL;VALUE=DURATION:PT1H",
+    ]
+
+    for cita in citas:
+        if not cita.fecha_inicio:
+            continue
+
+        # Asegurarse de que las fechas estén en UTC
+        inicio = cita.fecha_inicio.strftime("%Y%m%dT%H%M%SZ")
+        fin = (
+            cita.fecha_fin.strftime("%Y%m%dT%H%M%SZ")
+            if cita.fecha_fin
+            else inicio
+        )
+
+        # Obtener datos de la cotización relacionada (ajusta según tu modelo)
+        nombre_cliente = "Cliente"
+        descripcion = ""
+        try:
+            if hasattr(cita, "cotizacion") and cita.cotizacion:
+                nombre_cliente = getattr(cita.cotizacion, "cliente", "Cliente")
+                descripcion = getattr(cita.cotizacion, "descripcion_idea", "")
+            elif hasattr(cita, "cliente_nombre"):
+                nombre_cliente = cita.cliente_nombre
+        except Exception:
+            pass
+
+        uid = f"cita-{cita.id}@tattoostudio-os"
+
+        lines += [
+            "BEGIN:VEVENT",
+            f"UID:{uid}",
+            f"DTSTART:{inicio}",
+            f"DTEND:{fin}",
+            f"SUMMARY:🎨 Tatuaje — {nombre_cliente}",
+            f"DESCRIPTION:{descripcion}",
+            "LOCATION:Tattoo Studio",
+            "END:VEVENT",
+        ]
+
+    lines.append("END:VCALENDAR")
+    ical_content = "\r\n".join(lines)
+
+    return FastAPIResponse(
+        content=ical_content,
+        media_type="text/calendar; charset=utf-8",
+        headers={
+            "Content-Disposition": 'attachment; filename="studio.ics"',
+            "Cache-Control": "no-cache, no-store",
+        },
+    )
