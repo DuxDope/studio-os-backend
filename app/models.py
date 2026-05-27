@@ -34,6 +34,7 @@ class Cotizacion(Base):
     precio_estimado = Column(Numeric(10, 2), nullable=True)
     tiempo_estimado_hrs = Column(Integer, nullable=True)
     fecha_solicitud = Column(DateTime, default=datetime.utcnow)
+    tatuador_id = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
 
     # Relaciones
     cliente = relationship("Cliente", back_populates="cotizaciones")

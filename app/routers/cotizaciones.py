@@ -103,6 +103,7 @@ def responder_cotizacion(
     precio: float = Form(...), 
     horas: int = Form(...), 
     notas: str = Form(None),
+    tatuador_id: int = Form(None),
     db: Session = Depends(get_db),
     usuario: str = Depends(obtener_usuario_actual)
 ):
