@@ -95,11 +95,12 @@ class Galeria(Base):
 class AbonoMovimiento(Base):
     __tablename__ = "abono_movimientos"
 
-    id          = Column(Integer, primary_key=True, index=True)
-    cliente_id  = Column(Integer, ForeignKey("clientes.id"), nullable=False)
-    monto       = Column(Integer, nullable=False)
-    tipo        = Column(String(20), nullable=False)   # 'carga' | 'descuento'
+    id = Column(Integer, primary_key=True, index=True)
+    # ¡Aquí está el cambio clave!
+    cliente_id = Column(UUID(as_uuid=True), ForeignKey("clientes.id"), nullable=False)
+    monto = Column(Integer, nullable=False)
+    tipo = Column(String(20), nullable=False)
     descripcion = Column(Text, nullable=True)
-    fecha       = Column(DateTime, default=datetime.utcnow)
+    fecha = Column(DateTime, default=datetime.utcnow)
 
     cliente = relationship("Cliente", back_populates="abono_movimientos")
