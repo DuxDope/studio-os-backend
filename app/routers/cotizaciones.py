@@ -115,6 +115,7 @@ def responder_cotizacion(
     cot.tiempo_estimado_hrs = horas
     cot.notas_tatuador = notas 
     cot.estado = "revisada" 
+    cot.tatuador_id = tatuador_id
 
     db.commit()
     return {"mensaje": "Respuesta enviada y mesa limpia"}
